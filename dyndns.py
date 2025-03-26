@@ -103,10 +103,10 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         if sys.argv[1] == "online":
             try:
-                ipv4 = requests.get("https://v6.ident.me/", timeout=10.).text
+                ipv6 = requests.get("https://v6.ident.me/", timeout=10.).text
             except:
                 try:
-                    ipv4 = requests.get("https://api6.ipify.org", timeout=10.).text
+                    ipv6 = requests.get("https://api6.ipify.org", timeout=10.).text
                 except:
                     print_message("WARNING: Unable to determine current IPv6 address.")
         else:
