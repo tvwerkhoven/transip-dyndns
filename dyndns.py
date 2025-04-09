@@ -6,7 +6,7 @@ copy-and-paste your private key here. don't forget to restrict access to this fi
 LOGIN = "username"
 LABEL = "DynDNS30s"
 TIMEOUT = 10.
-DOMAIN_MAIN_ENTRY = {"mydomain.nl": ["*", "www", "ssh"], "myseconddomain.nl": ["@"]}
+DOMAIN_MAIN_ENTRY = {"mydomain.nl": "*", "myseconddomain.nl": "@"}
 
 
 # pip install cryptography requests
@@ -126,7 +126,7 @@ if __name__ == "__main__":
         print_message("ERROR: Could not get auth token. %s" % format_exception(ex))
         sys.exit(2)
 
-    for domain, all_entries in DOMAIN_MAIN_ENTRY.items():
+    for domain, main_entry in DOMAIN_MAIN_ENTRY.items():
         # Get the current DNS entries from TransIP.
         try:
             dns = request_get("domains/%s/dns" % domain, token)["dnsEntries"]
@@ -134,44 +134,43 @@ if __name__ == "__main__":
             print_message("WARNING: Could not get current DNS config for %s. %s" % (domain, format_exception(ex)))
             continue
 
-        for main_entry in all_entries:
-            # Find previously set IP addresses.
-            oldIPv4 = False
-            oldIPv6 = False
-            for entry in dns:
-                if entry["name"] == main_entry:
-                    if entry["type"] == "A":
-                        oldIPv4 = entry["content"]
-                    elif entry["type"] == "AAAA":
-                        oldIPv6 = entry["content"]
-            if ipv4 and not oldIPv4:
-                print_message("WARNING: Unable to determine previous IPv4 address for %s." % domain)
-            if ipv6 and not oldIPv6:
-                print_message("WARNING: Unable to determine previous IPv6 address for %s." % domain)
+        # Find previously set IP addresses.
+        oldIPv4 = False
+        oldIPv6 = False
+        for entry in dns:
+            if entry["name"] == main_entry:
+                if entry["type"] == "A":
+                    oldIPv4 = entry["content"]
+                elif entry["type"] == "AAAA":
+                    oldIPv6 = entry["content"]
+        if ipv4 and not oldIPv4:
+            print_message("WARNING: Unable to determine previous IPv4 address for %s." % domain)
+        if ipv6 and not oldIPv6:
+            print_message("WARNING: Unable to determine previous IPv6 address for %s." % domain)
 
-            # Determine what needs to be changed.
-            updateIPv4 = oldIPv4 and ipv4 and oldIPv4 != ipv4
-            updateIPv6 = oldIPv6 and ipv6 and oldIPv6 != ipv6
-            if not updateIPv4 and not updateIPv6:
-                print_message("No changes required for %s - %s." % (domain, main_entry))
-                continue
-            if updateIPv4:
-                print_message("Changing IPv4 address from %s to %s for %s - %s." % (oldIPv4, ipv4, domain, main_entry))
-            if updateIPv6:
-                print_message("Changing IPv4 address from %s to %s for %s - %s." % (oldIPv6, ipv6, domain, main_entry))
+        # Determine what needs to be changed.
+        updateIPv4 = oldIPv4 and ipv4 and oldIPv4 != ipv4
+        updateIPv6 = oldIPv6 and ipv6 and oldIPv6 != ipv6
+        if not updateIPv4 and not updateIPv6:
+            print_message("No changes required for %s - %s." % (domain, main_entry))
+            continue
+        if updateIPv4:
+            print_message("Changing IPv4 address from %s to %s for %s - %s." % (oldIPv4, ipv4, domain, main_entry))
+        if updateIPv6:
+            print_message("Changing IPv4 address from %s to %s for %s - %s." % (oldIPv6, ipv6, domain, main_entry))
 
-            # Update all DNS entries that have the found IP addresses.
-            for entry in dns:
-                update = False
-                if updateIPv4 and entry["content"] == oldIPv4:
-                    entry["content"] = ipv4
-                    update = True
-                elif updateIPv6 and entry["content"] == oldIPv6:
-                    entry["content"] = ipv6
-                    update = True
-                if update:
-                    try:
-                        request_patch("domains/%s/dns" % domain, token, {"dnsEntry": entry})
-                    except Exception as ex:
-                        print_message("WARNING: Could not update DNS config for %s with %r. %s" % (domain, entry, format_exception(ex)))
-                        continue
+        # Update all DNS entries that have the found IP addresses.
+        for entry in dns:
+            update = False
+            if updateIPv4 and entry["content"] == oldIPv4:
+                entry["content"] = ipv4
+                update = True
+            elif updateIPv6 and entry["content"] == oldIPv6:
+                entry["content"] = ipv6
+                update = True
+            if update:
+                try:
+                    request_patch("domains/%s/dns" % domain, token, {"dnsEntry": entry})
+                except Exception as ex:
+                    print_message("WARNING: Could not update DNS config for %s with %r. %s" % (domain, entry, format_exception(ex)))
+                    continue
